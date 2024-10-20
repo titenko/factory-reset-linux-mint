@@ -11,11 +11,16 @@ if [ "$answer" != "y" ]; then
     exit 1
 fi
 
-# 1. Обновление списка пакетов
+# 1. Скачивание файла default.list
+echo "Скачивание файла default.list..."
+sudo mkdir -p /usr/share/linuxmint/mintinstall/
+wget -O /usr/share/linuxmint/mintinstall/default.list https://raw.githubusercontent.com/titenko/factory-reset-linux-mint/refs/heads/master/default.list
+
+# 2. Обновление списка пакетов
 echo "Обновление списка пакетов..."
 sudo apt update
 
-# 2. Удаление сторонних программ (кроме системных)
+# 3. Удаление сторонних программ (кроме системных)
 echo "Удаление сторонних программ..."
 # Получаем список стандартных пакетов
 DEFAULT_PACKAGES=$(comm -12 <(dpkg --get-selections | awk '{print $1}' | sort) <(cat /usr/share/linuxmint/mintinstall/default.list | sort))
@@ -28,7 +33,7 @@ for pkg in $INSTALLED_PACKAGES; do
     fi
 done
 
-# 3. Удаление вручную установленных Flatpak программ
+# 4. Удаление вручную установленных Flatpak программ
 echo "Удаление вручную установленных Flatpak программ..."
 # Сравниваем текущий список Flatpak программ с сохранённым "стандартным" списком
 flatpak list --app --columns=application > /tmp/current_flatpak_list.txt
@@ -39,11 +44,11 @@ for flatpak in $(cat /tmp/current_flatpak_list.txt); do
     fi
 done
 
-# 4. Исправление проблем с зависимостями и пакетами
+# 5. Исправление проблем с зависимостями и пакетами
 echo "Исправление проблем с зависимостями..."
 sudo apt-get -f install -y
 
-# 5. Очистка домашнего каталога, сохраняя важные системные файлы
+# 6. Очистка домашнего каталога, сохраняя важные системные файлы
 echo "Очистка домашнего каталога пользователя..."
 
 # Список скрытых файлов и папок, которые нужно оставить
@@ -89,7 +94,7 @@ if command -v xdg-user-dirs-update &> /dev/null; then
     xdg-user-dirs-update
 fi
 
-# 6. Очистка системных каталогов после удаления программ
+# 7. Очистка системных каталогов после удаления программ
 echo "Очистка системных каталогов после удаления программ..."
 
 # Список системных каталогов, которые могут содержать файлы от удалённых программ
@@ -106,7 +111,7 @@ for dir in "${system_dirs[@]}"; do
     find "$dir" -type d -empty -delete 2>/dev/null
 done
 
-# 7. Поиск и удаление лишних зависимостей
+# 8. Поиск и удаление лишних зависимостей
 echo "Поиск и удаление лишних зависимостей..."
 # Удаляем ненужные зависимости
 sudo apt-get autoremove --purge -y
@@ -117,16 +122,16 @@ sudo deborphan | xargs sudo apt-get -y remove --purge
 # Удаляем конфигурационные файлы удалённых пакетов
 dpkg -l | awk '/^rc/ {print $2}' | xargs sudo dpkg --purge
 
-# 8. Восстановление конфигурационных файлов к заводским настройкам
+# 9. Восстановление конфигурационных файлов к заводским настройкам
 echo "Восстановление конфигурационных файлов..."
 # Получаем список установленных пакетов и переустанавливаем их с удалением старых конфигураций
 sudo apt-get install --reinstall --purge $(dpkg --get-selections | grep -v deinstall | awk '{print $1}') -y
 
-# 9. Очистка системы от ненужных пакетов и файлов
+# 10. Очистка системы от ненужных пакетов и файлов
 echo "Очистка системы от ненужных пакетов и файлов..."
 sudo apt-get autoremove -y
 sudo apt-get autoclean -y
 
-# 10. Перезагрузка системы
+# 11. Перезагрузка системы
 echo "Все действия завершены. Перезагрузка системы..."
 sudo reboot
